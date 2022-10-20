@@ -3,8 +3,8 @@ use clap::{Arg, Command};
 use serde::Deserialize;
 use std::{io::Result, collections::HashMap, fs};
 
-#[derive(Debug, Deserialize)]
-struct Outer {
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct Outer {
     payload: HashMap<String, toml::Value>
 }
 
@@ -33,17 +33,37 @@ fn get_arguments() {
     println!("{:?}", jwt.unwrap());
 }
 
-fn create_jwt(config: Outer) -> Result<String>  {
+pub fn create_jwt(config: Outer) -> Result<String>  {
     let payload = &config.payload;
     let result = encode(&Header::default(), payload, &EncodingKey::from_secret("secret".as_ref())).unwrap(); 
 
     Ok(result)
 }
 
-fn read_file(file: String) -> Result<Outer> {
+pub fn read_file(file: String) -> Result<Outer> {
     let read = fs::read_to_string(file)?;
 
     let config: Outer = toml::from_str(&read)?;
 
     return Ok(config);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use::toml::Value;
+
+    #[test]
+    fn read_file_test() {
+        let mut values: HashMap<String, toml::Value> = HashMap::new();
+        values.insert("sub".to_string(),  toml::Value::String("1234567890".to_string()));
+        values.insert("name".to_string(), toml::Value::String("John Doe".to_string()));
+        values.insert("iat".to_string(),  Value::Integer(1516239022));
+
+        let mock = Outer {
+            payload: values,
+        };
+
+        assert_eq!(mock, read_file("./Config.toml".to_string()).unwrap());
+    }
 }
