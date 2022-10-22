@@ -1,11 +1,17 @@
-use jsonwebtoken::{encode, Header, EncodingKey, };
+use jsonwebtoken::{encode, Header, EncodingKey}; 
 use clap::{Arg, Command};
 use serde::Deserialize;
 use std::{io::Result, collections::HashMap, fs};
 
 #[derive(Debug, Deserialize, PartialEq)]
+pub struct SecretKey {
+    value: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct Outer {
-    payload: HashMap<String, toml::Value>
+    payload: HashMap<String, toml::Value>,
+    secretkey: SecretKey,
 }
 
 fn main() {
@@ -31,11 +37,13 @@ fn get_arguments() {
     let jwt = create_jwt(config);
 
     println!("{:?}", jwt.unwrap());
+
 }
 
 pub fn create_jwt(config: Outer) -> Result<String>  {
     let payload = &config.payload;
-    let result = encode(&Header::default(), payload, &EncodingKey::from_secret("secret".as_ref())).unwrap(); 
+    let secret = &config.secretkey.value.to_string();
+    let result = encode(&Header::default(), payload, &EncodingKey::from_secret(secret.as_ref())).unwrap(); 
 
     Ok(result)
 }
@@ -62,6 +70,7 @@ mod tests {
 
         let mock = Outer {
             payload: values,
+            secretkey: SecretKey { value: "secretKey".to_string() }
         };
 
         assert_eq!(mock, read_file("./Config.toml".to_string()).unwrap());
