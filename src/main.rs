@@ -1,7 +1,7 @@
 use jsonwebtoken::{encode, Header, EncodingKey}; 
 use clap::{Arg, Command};
 use serde::Deserialize;
-use std::{io::Result, collections::HashMap, fs};
+use std::{collections::HashMap, fs};
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct SecretKey {
@@ -14,11 +14,52 @@ pub struct Outer {
     secretkey: SecretKey,
 }
 
-fn main() {
-    get_arguments();
+#[derive(Debug)]
+enum JwtError {
+    ReadFileErr(std::io::Error),
+    CreateTokenErr(jsonwebtoken::errors::Error),
+    TomlErr(toml::de::Error)
 }
 
-fn get_arguments() {
+impl std::fmt::Display for JwtError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl From<std::io::Error> for JwtError {
+    fn from(error: std::io::Error) -> Self {
+        JwtError::ReadFileErr(error)
+    }
+}
+
+impl From<jsonwebtoken::errors::Error> for JwtError {
+    fn from(error: jsonwebtoken::errors::Error) -> Self {
+        JwtError::CreateTokenErr(error)
+    }
+}
+
+
+impl From<toml::de::Error> for JwtError {
+    fn from(error: toml::de::Error) -> Self {
+        JwtError::TomlErr(error)
+    }
+}
+
+fn main() -> Result<(), JwtError> {
+    let res = get_arguments();
+
+    let jwt = match res {
+        Ok(jwt) => jwt,
+        Err(e) => return Err(e)
+    };
+
+    println!("{}", jwt);
+
+    Ok(())
+}
+
+fn get_arguments() -> Result<String, JwtError> {
     let matches = Command::new("JWT Generator")
         .version("0.1.0")
         .author("Brandon Bachynski")
@@ -31,29 +72,36 @@ fn get_arguments() {
         .get_matches();
 
     let myfile = matches.value_of("file").expect("Invalid file");
+    let config_result = read_file(myfile.to_string());
 
-    let config = read_file(myfile.to_string()).expect("Unable to read file");
+    match config_result {
+        Ok(config) => {
 
-    let jwt = create_jwt(config);
+            let create_jwt_result = create_jwt(config);
 
-    println!("{:?}", jwt.unwrap());
-
+            match create_jwt_result {
+                Ok(token) => Ok(token),
+                Err(err) => Err(err)
+            }
+        },
+        Err(err) => Err(err)
+    }
 }
 
-pub fn create_jwt(config: Outer) -> Result<String>  {
+fn create_jwt(config: Outer) -> Result<String, JwtError>  {
     let payload = &config.payload;
     let secret = &config.secretkey.value.to_string();
-    let result = encode(&Header::default(), payload, &EncodingKey::from_secret(secret.as_ref())).unwrap(); 
+    let result = encode(&Header::default(), payload, &EncodingKey::from_secret(secret.as_ref()))?; 
 
     Ok(result)
 }
 
-pub fn read_file(file: String) -> Result<Outer> {
-    let read = fs::read_to_string(file)?;
+fn read_file(file: String) -> Result<Outer, JwtError> {
+    let result = fs::read_to_string(file).map_err(JwtError::ReadFileErr)?;
 
-    let config: Outer = toml::from_str(&read)?;
+    let config: Outer = toml::from_str(&result)?;
 
-    return Ok(config);
+    Ok(config)
 }
 
 #[cfg(test)]

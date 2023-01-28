@@ -4,4 +4,4 @@ name = "John Doe"
 iat = 1516239022
 
 [secretkey]
-secret = "secretKey"
+value = "secretKey"
