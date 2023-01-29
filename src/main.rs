@@ -23,7 +23,7 @@ enum JwtError {
 
 impl std::fmt::Display for JwtError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{}", self)
     }
 }
 
@@ -46,20 +46,11 @@ impl From<toml::de::Error> for JwtError {
     }
 }
 
-fn main() -> Result<(), JwtError> {
-    let res = get_arguments();
-
-    let jwt = match res {
-        Ok(jwt) => jwt,
-        Err(e) => return Err(e)
-    };
-
-    println!("{}", jwt);
-
-    Ok(())
+fn main() {
+    get_arguments();
 }
 
-fn get_arguments() -> Result<String, JwtError> {
+fn get_arguments() {
     let matches = Command::new("JWT Generator")
         .version("0.1.0")
         .author("Brandon Bachynski")
@@ -71,20 +62,26 @@ fn get_arguments() -> Result<String, JwtError> {
             .help("A file to be read"))
         .get_matches();
 
-    let myfile = matches.value_of("file").expect("Invalid file");
-    let config_result = read_file(myfile.to_string());
+    let myfile = matches.value_of("file").ok_or("Cannot find file");
 
-    match config_result {
-        Ok(config) => {
+    match myfile {
+        Ok(file) => {
+            let config_result = read_file(file.to_string());
 
-            let create_jwt_result = create_jwt(config);
+            match config_result {
+                Ok(token) => {
+                    let jwt_result = create_jwt(token);
 
-            match create_jwt_result {
-                Ok(token) => Ok(token),
-                Err(err) => Err(err)
+                    match jwt_result {
+                        Ok(jwt) => println!("{}", jwt),
+                        Err(err) => println!("Error: {:?}", err)
+                    }
+                },
+                Err(err) => println!("Error: {:?}", err)
             }
+
         },
-        Err(err) => Err(err)
+        Err(err) => println!("Error: {:?}", err)
     }
 }
 
