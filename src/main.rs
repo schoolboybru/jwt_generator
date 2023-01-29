@@ -1,7 +1,7 @@
 use jsonwebtoken::{encode, Header, EncodingKey}; 
 use clap::{Arg, Command};
 use serde::Deserialize;
-use std::{collections::HashMap, fs};
+use std::{fs, collections::HashMap};
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct SecretKey {
@@ -23,7 +23,14 @@ enum JwtError {
 
 impl std::fmt::Display for JwtError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        match self {
+            JwtError::ReadFileErr(read_file_err) =>
+                write!(f, "{}", read_file_err),
+            JwtError::CreateTokenErr(create_token_err) =>
+                write!(f, "{}", create_token_err),
+            JwtError::TomlErr(toml_err) =>
+                write!(f, "{}", toml_err),
+        }
     }
 }
 
@@ -74,14 +81,14 @@ fn get_arguments() {
 
                     match jwt_result {
                         Ok(jwt) => println!("{}", jwt),
-                        Err(err) => println!("Error: {:?}", err)
+                        Err(err) => println!("Error: {}", err)
                     }
                 },
-                Err(err) => println!("Error: {:?}", err)
+                Err(err) => println!("Error: {}", err)
             }
 
         },
-        Err(err) => println!("Error: {:?}", err)
+        Err(err) => println!("Error: {}", err)
     }
 }
 
