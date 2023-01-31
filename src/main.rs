@@ -77,7 +77,7 @@ fn get_arguments() {
 
             match config_result {
                 Ok(token) => {
-                    let jwt_result = create_jwt(token);
+                    let jwt_result = create_jwt(&token);
 
                     match jwt_result {
                         Ok(jwt) => println!("{}", jwt),
@@ -92,7 +92,7 @@ fn get_arguments() {
     }
 }
 
-fn create_jwt(config: Outer) -> Result<String, JwtError>  {
+fn create_jwt(config: &Outer) -> Result<String, JwtError>  {
     let payload = &config.payload;
     let secret = &config.secretkey.value.to_string();
     let result = encode(&Header::default(), payload, &EncodingKey::from_secret(secret.as_ref()))?; 
@@ -111,6 +111,7 @@ fn read_file(file: String) -> Result<Outer, JwtError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use jsonwebtoken::{decode, DecodingKey, Validation};
     use::toml::Value;
 
     #[test]
@@ -126,5 +127,27 @@ mod tests {
         };
 
         assert_eq!(mock, read_file("./Config.toml".to_string()).unwrap());
+    }
+
+    #[test]
+    fn create_jwt_test() {
+        let mut values: HashMap<String, toml::Value> = HashMap::new();
+        values.insert("sub".to_string(),  toml::Value::String("1234567890".to_string()));
+        values.insert("name".to_string(), toml::Value::String("John Doe".to_string()));
+        values.insert("exp".to_string(), Value::Integer(100000000000000000));
+        values.insert("iat".to_string(),  Value::Integer(1516239022));
+
+        let mock = Outer {
+            payload: values,
+            secretkey: SecretKey { value: "secretKey".to_string() }
+        };
+
+        let token = create_jwt(&mock);
+
+        println!("Token: {:?}", token);
+
+        let result = decode::<HashMap<String, toml::Value>>(&token.unwrap(), &DecodingKey::from_secret("secretKey".as_ref()), &Validation::default());
+
+        assert_eq!(mock.payload, result.unwrap().claims);
     }
 }
